@@ -1,0 +1,23 @@
+# demo.py - Minimal working example
+from guideguard import MCU_GuardLogitsProcessor
+import torch
+
+# 1. Define the three required components with consistent mapping
+def upos_mapper(token_id: int) -> str:
+    mapping = {5: "DET", 100: "NOUN", 200: "VERB"}
+    return mapping.get(token_id, "X")  # "X" for unknown
+
+upos_to_token_ids = {"DET": {5}, "NOUN": {100}, "VERB": {200}}
+meta_rules = {("DET", "NOUN"): "VERB"}  # After "The [Noun]", expect verb
+
+# 2. Create processor
+processor = MCU_GuardLogitsProcessor(upos_mapper, upos_to_token_ids, meta_rules)
+
+# 3. Simulate input: ["The", "explosion"] → next should be VERB
+input_ids = torch.tensor([[5, 100]])  # 5="The", 100="explosion"
+scores = torch.randn(1, 1000)
+scores[0, 200] = 10.0  # Make verb "explode" (id=200) highly likely
+
+# 4. Show constraint effect
+output = processor(input_ids, scores)
+print(f"Top token after constraint: {output[0].argmax().item()}")  # Should be 200
